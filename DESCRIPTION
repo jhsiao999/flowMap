@@ -2,7 +2,7 @@ Package: flowMap
 Type: Package
 Title: Mapping cell populations in flow cytometry data for
     cross-sample comparisons using the Friedman-Rafsky Test
-Version: 1.99.2
+Version: 1.5.1
 Authors@R: c(person("Chiaowen Joyce Hsiao",role=c("aut","cre")
     ,email="joyce.hsiao1@gmail.com"), person("Yu
     Qian",role="aut",email="mqian@jcvi.org"), person("Richard H.
