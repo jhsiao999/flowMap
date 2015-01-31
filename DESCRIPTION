@@ -24,11 +24,8 @@ Depends:
     doParallel(>= 1.0.3),
     abind(>= 1.4.0),
     reshape2(>= 1.2.2),
-    ggplot2(>= 0.9.3.1),
-    igraph (>= 0.7.1),
     scales(>= 0.2.3),
     Matrix(>= 1.1-4),
-    gplots(>= 2.14.1),
     methods (>= 2.14)
 Suggests:
     BiocStyle,
