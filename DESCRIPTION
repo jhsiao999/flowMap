@@ -1,0 +1,38 @@
+Package: flowMap
+Type: Package
+Title: Mapping cell populations in flow cytometry data for
+    cross-sample comparisons using the Friedman-Rafsky Test
+Version: 1.99.2
+Authors@R: c(person("Chiaowen Joyce Hsiao",role=c("aut","cre")
+    ,email="joyce.hsiao1@gmail.com"), person("Yu
+    Qian",role="aut",email="mqian@jcvi.org"), person("Richard H.
+    Scheuermann",role="aut",email="rscheuermann@jcvi.org"))
+Author: Chiaowen Joyce Hsiao, Yu Qian, and Richard H. Scheuermann
+Maintainer: Chiaowen Joyce Hsiao <joyce.hsiao1@gmail.com>
+Description: flowMap quantifies the similarity of cell populations
+    across multiple flow cytometry samples using a nonparametric
+    multivariate statistical test. The method is able to map cell
+    populations of different size, shape, and proportion across
+    multiple flow cytometry samples. The algorithm can be incorporate
+    in any flow cytometry work flow that requires accurat
+    quantification of similarity between cell populations.
+License: GPL (>=2)
+VignetteBuilder: knitr
+Depends:
+    R (>= 3.0.1),
+    ade4(>= 1.5-2),
+    doParallel(>= 1.0.3),
+    abind(>= 1.4.0),
+    reshape2(>= 1.2.2),
+    ggplot2(>= 0.9.3.1),
+    igraph (>= 0.7.1),
+    scales(>= 0.2.3),
+    Matrix(>= 1.1-4),
+    gplots(>= 2.14.1),
+    methods (>= 2.14)
+Suggests:
+    BiocStyle,
+    knitr
+LazyData: true
+biocViews: MultipleComparison, FlowCytometry
+Packaged: 2014-04-12 06:29:02 UTC; biocbuild

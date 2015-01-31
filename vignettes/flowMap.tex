@@ -1,0 +1,421 @@
+%\VignetteIndexEntry{Mapping cell populations in flow cytometry data flowMap-FR}
+%\VignetteDepends{flowMap}
+%\VignetteEngine{knitr::knitr}
+
+% To compile this document
+% library('knitr'); rm(list=ls()); knit('flowMap.Rnw')
+
+
+
+\documentclass[12pt]{article}\usepackage[]{graphicx}\usepackage[usenames,dvipsnames]{color}
+%% maxwidth is the original width if it is less than linewidth
+%% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+\definecolor{fgcolor}{rgb}{0.345, 0.345, 0.345}
+\newcommand{\hlnum}[1]{\textcolor[rgb]{0.686,0.059,0.569}{#1}}%
+\newcommand{\hlstr}[1]{\textcolor[rgb]{0.192,0.494,0.8}{#1}}%
+\newcommand{\hlcom}[1]{\textcolor[rgb]{0.678,0.584,0.686}{\textit{#1}}}%
+\newcommand{\hlopt}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hlstd}[1]{\textcolor[rgb]{0.345,0.345,0.345}{#1}}%
+\newcommand{\hlkwa}[1]{\textcolor[rgb]{0.161,0.373,0.58}{\textbf{#1}}}%
+\newcommand{\hlkwb}[1]{\textcolor[rgb]{0.69,0.353,0.396}{#1}}%
+\newcommand{\hlkwc}[1]{\textcolor[rgb]{0.333,0.667,0.333}{#1}}%
+\newcommand{\hlkwd}[1]{\textcolor[rgb]{0.737,0.353,0.396}{\textbf{#1}}}%
+
+\usepackage{framed}
+\makeatletter
+\newenvironment{kframe}{%
+ \def\at@end@of@kframe{}%
+ \ifinner\ifhmode%
+  \def\at@end@of@kframe{\end{minipage}}%
+  \begin{minipage}{\columnwidth}%
+ \fi\fi%
+ \def\FrameCommand##1{\hskip\@totalleftmargin \hskip-\fboxsep
+ \colorbox{shadecolor}{##1}\hskip-\fboxsep
+     % There is no \\@totalrightmargin, so:
+     \hskip-\linewidth \hskip-\@totalleftmargin \hskip\columnwidth}%
+ \MakeFramed {\advance\hsize-\width
+   \@totalleftmargin\z@ \linewidth\hsize
+   \@setminipage}}%
+ {\par\unskip\endMakeFramed%
+ \at@end@of@kframe}
+\makeatother
+
+\definecolor{shadecolor}{rgb}{.97, .97, .97}
+\definecolor{messagecolor}{rgb}{0, 0, 0}
+\definecolor{warningcolor}{rgb}{1, 0, 1}
+\definecolor{errorcolor}{rgb}{1, 0, 0}
+\newenvironment{knitrout}{}{} % an empty environment to be redefined in TeX
+
+\usepackage{alltt}
+
+
+
+
+\RequirePackage{/Library/Frameworks/R.framework/Versions/3.1/Resources/library/BiocStyle/sty/Bioconductor}
+
+\AtBeginDocument{\bibliographystyle{/Library/Frameworks/R.framework/Versions/3.1/Resources/library/BiocStyle/sty/unsrturl}}
+
+
+
+
+
+\author{Chiaowen Joyce Hsiao$^{1*}$, Yu Qian$^{2}$, Richard H. Scheuermann$^{2}$ \\[1em] \small{$^{1}$ Center for Bioinformatics and Computational Biology (CBCB) and} \\ \small{and Applied Mathematics and Scientific Computation,} \\ \small{University of Maryland, College Park, US;} \\ \small{$^{2}$ Department of Informatics, J. Craig Venter Institute (JCVI), San Diego, US} \\ \small{\texttt{$^*$joyce.hsiao1 (at) gmail.com}} }
+
+
+\title{User's guide to flowMap}
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+  \Biocpkg{flowMap} is a stand-alone software for mapping cell populations in multiple flow cytometry (FCM) data. A core issue in cell population matching is the ability of the algorithm to accurately quantify similarity between cell populations differing in proportion, size, and levels of expression markers. Our algorithm implements the Friedman-Rafskty (FR) statistic to compare similarity between cell populations across multiple flow cytometry samples. Users can generate a matrix of FR statistic, which can then be used to determine cell population groups across samples. The method can be incorporated in any standard flow cytometry sample processing pipeline at any stage where comparison of cell populations is required. We demonstrated the ability of the FR statistic in scenaiors of biological and technical differences between flow cytometry samples in C. Hsiao, M. Liu, R. Stanton, M. McGee, Y. Qian, and R. H. Scheuermann: Mapping cell populations in flow cytometry data for cross-sample comparison using the Friedman-Rafsky Test (2014) \cite{flowMap}. 
+\end{abstract}
+
+
+
+
+\newpage
+
+\tableofcontents
+
+
+\section{Introduction}
+In this vignette, we show how to use \Biocpkg{flowMap} to compare cell populations cell populations across flow cytometry samples, and to visualize the results. 
+
+\section{Data prepartion}
+\Biocpkg{flowMap} input accepts any flow cytometry sample files with identified cell populations. Thus, users can use \Biocpkg{flowMap} at any step of a FCM workflow to quantify similarity of cell populations. In order to use flowMap as a downstream analysis tool to compare phenotypes, the input FCM sample files need to have been preprocessed for debris filtering, transformation, and marker expression alignment.\\ 
+
+Each FCM sample input needs to be in the matrix form of numeric values. Rows correspond to the events (cells) and the columns correspond to marker expression measurements. The last column of the sample matrix is usually named as \Robject{id}, serving as cell population membership index containing numeric values.\\
+
+\subsection{Example data} Here's a flow cytometry sample in \emph{txt} format. There are 9 cell populations identified in the sample from 20,000 events measured in 4 feature markers (CD14,CD23,CD3,CD19,id). \Robject{id} index the cell population membership of each event from 1, 2, 3 through 9.
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{sam1} \hlkwb{<-} \hlkwd{read.table}\hlstd{(}\hlkwd{system.file}\hlstd{(}\hlstr{"extdata/sample.txt"}\hlstd{,}\hlkwc{package}\hlstd{=}\hlstr{"flowMap"}\hlstd{),}
+                   \hlkwc{header}\hlstd{=T)}
+\hlkwd{str}\hlstd{(sam1)}
+\end{alltt}
+\begin{verbatim}
+## 'data.frame':	20000 obs. of  5 variables:
+##  $ CD14: int  186 116 287 148 115 146 18 0 171 173 ...
+##  $ CD23: int  0 272 370 111 198 178 53 0 290 338 ...
+##  $ CD3 : int  216 232 349 576 481 553 577 91 263 333 ...
+##  $ CD19: int  198 175 288 104 217 269 0 42 129 254 ...
+##  $ id  : int  1 4 8 7 7 7 7 1 4 8 ...
+\end{verbatim}
+\begin{alltt}
+\hlkwd{table}\hlstd{(sam1}\hlopt{$}\hlstd{id)}
+\end{alltt}
+\begin{verbatim}
+## 
+##    1    2    3    4    5    6    7    8    9 
+## 1641  809  330 2363 3422  943 7380 2788  324
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+
+
+
+
+\section{FR statistic to quantify similarity between cell populations}
+
+The Friedman-Rafsky statistic is based on the minimum spanning tree (MST) algorithm which computes the extent to which the two cell populations overlap in their shared feature space \cite{FriedmanRafsky}. Because the runtime of the MST algorithm is quadratic in the number of events, we devised a downsampling scheme to estimate the FR statistics in a single cell population pair comparison. First, for any cell population pair comparison, the events are combined to form \Rcode{pooled data}. Next, samples containing the same number of events (default: 200) are taken from the pooled data. Each event in the pooled data may be sampled more than once. Key idea is to maintain a constant ratio of events from the two cell populations across samples. In each of the random samples, a MST is identified, followed by the FR statistic computation. The estimated FR statistic for each cell population pair comparison is based on the median of the FR statistics across the random samples.\\
+
+Below are examples of MST finding when comparing two FCM samples. \emph{Sample 1} and \emph{Sample 2} each contains 9 cell populations.\\
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{sam1} \hlkwb{<-} \hlkwd{read.table}\hlstd{(}\hlkwd{system.file}\hlstd{(}\hlstr{"extdata/sample.txt"}\hlstd{,}\hlkwc{package}\hlstd{=}\hlstr{"flowMap"}\hlstd{),}
+                   \hlkwc{header}\hlstd{=T)}
+\hlstd{sam2} \hlkwb{<-} \hlkwd{read.table}\hlstd{(}\hlkwd{system.file}\hlstd{(}\hlstr{"extdata/sample.txt"}\hlstd{,}\hlkwc{package}\hlstd{=}\hlstr{"flowMap"}\hlstd{),}
+                   \hlkwc{header}\hlstd{=T)}
+\hlkwd{table}\hlstd{(sam1}\hlopt{$}\hlstd{id)}
+\end{alltt}
+\begin{verbatim}
+## 
+##    1    2    3    4    5    6    7    8    9 
+## 1641  809  330 2363 3422  943 7380 2788  324
+\end{verbatim}
+\begin{alltt}
+\hlkwd{table}\hlstd{(sam2}\hlopt{$}\hlstd{id)}
+\end{alltt}
+\begin{verbatim}
+## 
+##    1    2    3    4    5    6    7    8    9 
+## 1641  809  330 2363 3422  943 7380 2788  324
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+
+
+\subsection{Visualize the minimum spanning tree} 
+
+\subsubsection{Example 1}
+When events with different cell population membership are distant from each other, or in other words, events with the same membership congregate, the FR statistic determines the two cell populations to be dissimilar from each other. CP1 from Sample 1 is compared with CP3 from Sample 2 in the MST below. 100 events is sampled from the pooled data combinig events from the two cell populations, with the ratio of the cell population membership kept the same as that in the pooled data before sampling.
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{mat1} \hlkwb{=} \hlstd{sam1[sam1}\hlopt{$}\hlstd{id}\hlopt{==}\hlnum{1}\hlstd{,]}
+\hlstd{mat2} \hlkwb{=} \hlstd{sam2[sam2}\hlopt{$}\hlstd{id}\hlopt{==}\hlnum{3}\hlstd{,]}
+
+\hlcom{# combine events from the two cell populations to }
+\hlcom{# make pooled data}
+\hlstd{mat} \hlkwb{=} \hlkwd{rbind}\hlstd{(mat1,mat2)}
+
+\hlcom{# sample 100 events from the pooled data}
+\hlstd{sampleSize} \hlkwb{=} \hlnum{100}
+
+\hlcom{# among the 100 events, sample events from the two cell populations}
+\hlcom{# such that the ratio of the cell population membership is the same}
+\hlcom{# as that in the pooled data}
+\hlstd{nn1} \hlkwb{=} \hlkwd{round}\hlstd{(sampleSize}\hlopt{*}\hlkwd{table}\hlstd{(mat}\hlopt{$}\hlstd{id)[}\hlnum{1}\hlstd{]}\hlopt{/}\hlkwd{nrow}\hlstd{(mat))}
+\hlstd{nn2} \hlkwb{=} \hlkwd{round}\hlstd{(sampleSize}\hlopt{*}\hlkwd{table}\hlstd{(mat}\hlopt{$}\hlstd{id)[}\hlnum{2}\hlstd{]}\hlopt{/}\hlkwd{nrow}\hlstd{(mat))}
+\hlstd{submat} \hlkwb{=} \hlkwd{rbind}\hlstd{(mat1[}\hlkwd{sample}\hlstd{(}\hlkwd{nrow}\hlstd{(mat1),nn1),],mat2[}\hlkwd{sample}\hlstd{(}\hlkwd{nrow}\hlstd{(mat2),nn2),])}
+\hlkwd{colnames}\hlstd{(submat)[}\hlnum{5}\hlstd{]} \hlkwb{=} \hlstr{"sam"}
+
+\hlcom{# plot MST of the 100 events}
+\hlstd{g1} \hlkwb{=} \hlkwd{makeFRMST}\hlstd{(submat)}
+\hlkwd{par}\hlstd{(}\hlkwc{mar}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{))}
+\hlkwd{plot}\hlstd{(g1}\hlopt{$}\hlstd{g,}\hlkwc{vertex.label.cex}\hlstd{=}\hlnum{0.01}\hlstd{,}
+     \hlkwc{layout}\hlstd{=}\hlkwd{layout.fruchterman.reingold}\hlstd{(g1}\hlopt{$}\hlstd{g))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\incfig[h]{figure/makeplotSelfruns1}{.5\textwidth}{Example 1: MST of sample events from two dissimilar cell populations}{Blue nodes belong to Sample 1 CP1, and red nodes belong to Sample 2 CP 3.}
+
+
+
+\subsubsection{Example 2}
+This is another example of two cell populations being dissimilar from each other. Events in the pooled data tend to congregate on the tree with events of the same cell population membership.
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{mat1} \hlkwb{=} \hlstd{sam1[sam1}\hlopt{$}\hlstd{id}\hlopt{==}\hlnum{4}\hlstd{,]; mat2} \hlkwb{=} \hlstd{sam2[sam2}\hlopt{$}\hlstd{id}\hlopt{==}\hlnum{5}\hlstd{,]}
+\hlstd{mat} \hlkwb{=} \hlkwd{rbind}\hlstd{(mat1,mat2)}
+\hlstd{sampleSize} \hlkwb{=} \hlnum{100}
+\hlstd{nn1} \hlkwb{=} \hlkwd{round}\hlstd{(sampleSize}\hlopt{*}\hlkwd{table}\hlstd{(mat}\hlopt{$}\hlstd{id)[}\hlnum{1}\hlstd{]}\hlopt{/}\hlkwd{nrow}\hlstd{(mat))}
+\hlstd{nn2} \hlkwb{=} \hlkwd{round}\hlstd{(sampleSize}\hlopt{*}\hlkwd{table}\hlstd{(mat}\hlopt{$}\hlstd{id)[}\hlnum{2}\hlstd{]}\hlopt{/}\hlkwd{nrow}\hlstd{(mat))}
+\hlstd{submat} \hlkwb{=} \hlkwd{rbind}\hlstd{(mat1[}\hlkwd{sample}\hlstd{(}\hlkwd{nrow}\hlstd{(mat1),nn1),],mat2[}\hlkwd{sample}\hlstd{(}\hlkwd{nrow}\hlstd{(mat2),nn2),])}
+\hlkwd{colnames}\hlstd{(submat)[}\hlnum{5}\hlstd{]} \hlkwb{=} \hlstr{"sam"}
+\hlstd{g1} \hlkwb{=} \hlkwd{makeFRMST}\hlstd{(submat)}
+\hlkwd{par}\hlstd{(}\hlkwc{mar}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{))}
+\hlkwd{plot}\hlstd{(g1}\hlopt{$}\hlstd{g,}\hlkwc{vertex.label.cex}\hlstd{=}\hlnum{0.01}\hlstd{,}\hlkwc{layout}\hlstd{=}\hlkwd{layout.fruchterman.reingold}\hlstd{(g1}\hlopt{$}\hlstd{g))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\incfig[h]{figure/makeplotSelfruns2}{.5\textwidth}{Example 2: MST of sample events from two dissimilar cell populations}{Blue nodes belong to sample 1 CP4, and red nodes belong to sample 2 CP5.}
+
+
+
+
+
+\newpage
+
+\subsubsection{Example 3}
+When two cell populations share a similar feature space, events of different cell population membership tend to distribute evenly on the tree. Below is an example of Sample 1 CP6 compared with Sample 2 CP6.
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{mat1} \hlkwb{=} \hlstd{sam1[sam1}\hlopt{$}\hlstd{id}\hlopt{==}\hlnum{6}\hlstd{,]}
+\hlstd{mat2} \hlkwb{=} \hlstd{sam2[sam2}\hlopt{$}\hlstd{id}\hlopt{==}\hlnum{6}\hlstd{,]}
+\hlstd{mat1}\hlopt{$}\hlstd{id}\hlkwb{=}\hlnum{1}\hlstd{; mat2}\hlopt{$}\hlstd{id}\hlkwb{=}\hlnum{2}
+\hlstd{mat} \hlkwb{=} \hlkwd{rbind}\hlstd{(mat1,mat2)}
+\hlstd{sampleSize} \hlkwb{=} \hlnum{100}
+\hlstd{nn1} \hlkwb{=} \hlkwd{round}\hlstd{(sampleSize}\hlopt{*}\hlkwd{table}\hlstd{(mat}\hlopt{$}\hlstd{id)[}\hlnum{1}\hlstd{]}\hlopt{/}\hlkwd{nrow}\hlstd{(mat))}
+\hlstd{nn2} \hlkwb{=} \hlkwd{round}\hlstd{(sampleSize}\hlopt{*}\hlkwd{table}\hlstd{(mat}\hlopt{$}\hlstd{id)[}\hlnum{2}\hlstd{]}\hlopt{/}\hlkwd{nrow}\hlstd{(mat))}
+\hlstd{submat} \hlkwb{=} \hlkwd{rbind}\hlstd{(mat1[}\hlkwd{sample}\hlstd{(}\hlkwd{nrow}\hlstd{(mat1),nn1),],mat2[}\hlkwd{sample}\hlstd{(}\hlkwd{nrow}\hlstd{(mat2),nn2),])}
+\hlkwd{colnames}\hlstd{(submat)[}\hlnum{5}\hlstd{]} \hlkwb{=} \hlstr{"sam"}
+\hlstd{g1} \hlkwb{=} \hlkwd{makeFRMST}\hlstd{(submat)}
+\hlkwd{par}\hlstd{(}\hlkwc{mar}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{))}
+\hlkwd{plot}\hlstd{(g1}\hlopt{$}\hlstd{g,}\hlkwc{vertex.label.cex}\hlstd{=}\hlnum{0.01}\hlstd{,}\hlkwc{layout}\hlstd{=}\hlkwd{layout.fruchterman.reingold}\hlstd{(g1}\hlopt{$}\hlstd{g))}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\incfig[h]{figure/makeplotSelfruns3}{.5\textwidth}{Example 3: MST of sample events from two similar cell populations}{Blue nodes belong to sample 1 CP6, and red nodes belong to sample 2 CP6.}
+
+
+
+
+
+
+
+\section{Mapping cell populations across FCM samples}
+
+\Biocpkg{flowMap} directly computes the similarity betweeen cell populations across FCM samples and provides results in a table format. As a proof-of-concept, we compared a FCM sample against itself.
+
+\subsection{Import data}
+The example data contains 9 identified cell populations.
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{sam1} \hlkwb{<-} \hlkwd{read.table}\hlstd{(}\hlkwd{system.file}\hlstd{(}\hlstr{"extdata/sample.txt"}
+            \hlstd{,}\hlkwc{package}\hlstd{=}\hlstr{"flowMap"}\hlstd{),}\hlkwc{header}\hlstd{=T)}
+\hlstd{sam2} \hlkwb{<-} \hlkwd{read.table}\hlstd{(}\hlkwd{system.file}\hlstd{(}\hlstr{"extdata/sample.txt"}
+            \hlstd{,}\hlkwc{package}\hlstd{=}\hlstr{"flowMap"}\hlstd{),}\hlkwc{header}\hlstd{=T)}
+\hlkwd{table}\hlstd{(sam1}\hlopt{$}\hlstd{id)}
+\end{alltt}
+\begin{verbatim}
+## 
+##    1    2    3    4    5    6    7    8    9 
+## 1641  809  330 2363 3422  943 7380 2788  324
+\end{verbatim}
+\begin{alltt}
+\hlkwd{table}\hlstd{(sam2}\hlopt{$}\hlstd{id)}
+\end{alltt}
+\begin{verbatim}
+## 
+##    1    2    3    4    5    6    7    8    9 
+## 1641  809  330 2363 3422  943 7380 2788  324
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+
+
+\subsection{Parameter setting in FR statistic computation}
+In order to optimize runtime, we devised a downsampling scheme to estimate FR statistics. The central idea is to draw random samples from the pooled data combining events in a cell population comparison and to estimate the FR statistics of the pooled data from the random samples. Parameters required are: number of random samples (\Robject{ndraws}; Default: 200), size of each random sample (\Robject{sampleSize}; Default: 200), sampling method (\Robject{sampleMethod}; Default: proportional), and number of processing cores (\Robject{ncores}; Default; maximum number of cores available in the computing environment). The parallel computing function in \Biocpkg{flowMap} is built upon the \Biocpkg{doParallel} package.\\
+
+The number of random samples and the size of each random samples determine the precision (variability of the FR statistics across random samples) and the accuracy (deviation of the sample FR statistics from the true FR statistic) of the estimated FR statistic when comparing any two cell populations. As illustrated in Hsiao et al., (2014), the ranks of cell population pairs remain the same when increasing the number of random samples to 500 or when increasing the size of the random sample to 500 events. Users are advised to use the default paramter setting when mapping cell populations when mapping cell populations.\\ 
+
+
+
+\subsection{Compute FR statistics}
+To compare any two FCM samples, users can use \Rfunction{getFRest} to obtain a matrix of estimated FR statistics comparing any two cell populations across samples. Rows and columns in the result matrix corresponds to the first and the second input sample in the \Rfunction{getFRest} function. For example, the (2,1) entry in the result matrix corresponds to the FR statistic comparing Sample 1 CP2 and Sample 2 CP1. The (4,3) entry in the result matrix corresponds to the FR statistic comparing Sample 1 CP4 and Sample 2 CP3.
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{res1} \hlkwb{=} \hlkwd{getFRest}\hlstd{(sam1,sam2,}\hlkwc{sampleMethod}\hlstd{=}\hlstr{"proportional"}\hlstd{,}\hlkwc{sampleSize}\hlstd{=}\hlnum{100}\hlstd{,}
+                \hlkwc{ndraws}\hlstd{=}\hlnum{100}\hlstd{,}\hlkwc{estStat}\hlstd{=}\hlstr{"median"}\hlstd{,}\hlkwc{ncores}\hlstd{=}\hlkwa{NULL}\hlstd{)}
+\hlstd{res1}\hlopt{@}\hlkwc{ww}
+\end{alltt}
+\begin{verbatim}
+##        1     2      3      4     5     6     7      8     9
+## 1  0.202 -9.34 -7.627 -9.130 -8.50 -9.55 -7.64 -9.578 -7.41
+## 2 -9.334  0.00 -8.937 -8.824 -7.65 -9.86 -6.09 -8.356 -9.04
+## 3 -7.589 -8.86  0.404 -6.566 -5.84 -8.78 -3.71 -5.850 -8.88
+## 4 -9.135 -8.81 -6.634 -0.202 -7.99 -9.09 -8.55 -9.053 -6.61
+## 5 -8.581 -7.65 -5.796 -7.888  0.00 -8.39 -9.29 -8.356 -5.80
+## 6 -9.548 -9.86 -8.780 -8.971 -8.36  0.00 -6.34 -8.617 -8.65
+## 7 -7.555 -6.04 -3.706 -8.519 -9.29 -6.32  0.00 -8.850 -3.71
+## 8 -9.590 -8.33 -5.983 -9.051 -8.22 -8.66 -8.87  0.202 -5.94
+## 9 -7.430 -8.97 -8.882 -6.566 -5.80 -8.66 -3.71 -6.044  0.00
+\end{verbatim}
+\begin{alltt}
+\hlkwd{library}\hlstd{(gplots)}
+\hlkwd{par}\hlstd{(}\hlkwc{mar}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{))}
+\hlstd{heatmapCols} \hlkwb{<-} \hlkwd{colorRampPalette}\hlstd{(}\hlkwd{c}\hlstd{(}\hlstr{"red"}\hlstd{,}\hlstr{"yellow"}\hlstd{,}\hlstr{"white"}\hlstd{,}\hlstr{"blue"}\hlstd{))(}\hlnum{50}\hlstd{)}
+\hlkwd{heatmap.2}\hlstd{(res1}\hlopt{@}\hlkwc{ww}\hlstd{,}\hlkwc{trace}\hlstd{=}\hlstr{"none"}\hlstd{,}\hlkwc{col}\hlstd{=heatmapCols,}\hlkwc{symm}\hlstd{=}\hlnum{FALSE}\hlstd{,}\hlkwc{dendrogram}\hlstd{=}\hlstr{"none"}\hlstd{,}
+          \hlkwc{Rowv}\hlstd{=}\hlnum{FALSE}\hlstd{,}\hlkwc{Colv}\hlstd{=}\hlnum{FALSE}\hlstd{,}\hlkwc{xlab}\hlstd{=}\hlstr{"Sample 2"}\hlstd{,}\hlkwc{ylab}\hlstd{=}\hlstr{"Sample 1"}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\incfig[h]{figure/compareSampleSelf}{.5\textwidth}{Heatmap comparing cell populations between Sample 1 and Sample 2}{The matched populations (in the diagonal) are quantified with significantly smaller FR statistic values than the mismatched populations (correspond to off-diagonal entries). The (\emph{i},\emph{j}) cell contains the FR statistic of comparing the Sample 1 \emph{i}-th cell population with Sample 2 \emph{j}-th cell population}
+
+
+Users can also extract p-values of the FR statistics in the slot \Robject{pNorm}. Heatmap of p-values shows that the p-values of the matched cell population pairs (diagonal entries) are clearly separated from the p-values of the mismatched cell population pairs (off-diagonal entries). 
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{library}\hlstd{(gplots)}
+\hlkwd{par}\hlstd{(}\hlkwc{mar}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{))}
+\hlstd{heatmapCols} \hlkwb{<-} \hlkwd{colorRampPalette}\hlstd{(}\hlkwd{c}\hlstd{(}\hlstr{"red"}\hlstd{,}\hlstr{"yellow"}\hlstd{,}\hlstr{"white"}\hlstd{,}\hlstr{"blue"}\hlstd{))(}\hlnum{50}\hlstd{)}
+\hlkwd{heatmap.2}\hlstd{(res1}\hlopt{@}\hlkwc{pNorm}\hlstd{,}\hlkwc{trace}\hlstd{=}\hlstr{"none"}\hlstd{,}\hlkwc{col}\hlstd{=heatmapCols,}\hlkwc{symm}\hlstd{=}\hlnum{FALSE}\hlstd{,}\hlkwc{dendrogram}\hlstd{=}\hlstr{"none"}\hlstd{,}
+          \hlkwc{Rowv}\hlstd{=}\hlnum{FALSE}\hlstd{,}\hlkwc{Colv}\hlstd{=}\hlnum{FALSE}\hlstd{,}\hlkwc{xlab}\hlstd{=}\hlstr{"Sample 2"}\hlstd{,}\hlkwc{ylab}\hlstd{=}\hlstr{"Sample 1"}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+\incfig[h]{figure/plotSelfpval}{.5\textwidth}{Heatmap of the FR statistics p-values comparing Sample 1 with Sample 2}{The p-values of the matched populations (in the diagonal) are significantly larger than the mismatched cell populations.}
+
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlkwd{hist}\hlstd{(res1}\hlopt{@}\hlkwc{pNorm}\hlstd{,}\hlkwc{xlab}\hlstd{=}\hlstr{"log10 p-value histogram"}\hlstd{,}\hlkwc{main}\hlstd{=}\hlstr{""}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+
+\incfig[h]{figure/plotSelfpvalhist}{.5\textwidth}{Histogram of the FR statistics p-values mapping cell populations between Sample 1 with Sample 2}{The bimodal distribution of the log10 p-values indicates a clear gap beteween p-values of matched cell population pairs versus p-values of mistmatched cell population pairs. The matched pairs have significantly larger p-values (\emph{p}>.4) than the mismatched pairs (\emph{p}<.01).}
+
+
+\subsection{Generate a multi-sample similarity matrix for clustering}
+
+\Rfunction(makeDistmat) generates a complete similarity matrix containing FR statistics that is useful for multiple sample comparisons. Using the above Sample 1 versus Sample 2 example, user can obtain a 18-by-18 matrix for hierarchical clustering.
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{alltt}
+\hlstd{resMulti} \hlkwb{=} \hlkwd{makeDistmat}\hlstd{(}\hlkwc{samples}\hlstd{=}\hlkwd{list}\hlstd{(sam1,sam2),}\hlkwc{sampleSize}\hlstd{=}\hlnum{100}\hlstd{,}\hlkwc{ndraws}\hlstd{=}\hlnum{100}\hlstd{)}
+\hlkwd{require}\hlstd{(gplots)}
+\hlkwd{par}\hlstd{(}\hlkwc{mar}\hlstd{=}\hlkwd{c}\hlstd{(}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{,}\hlnum{0}\hlstd{))}
+\hlstd{heatmapCols} \hlkwb{<-} \hlkwd{colorRampPalette}\hlstd{(}\hlkwd{c}\hlstd{(}\hlstr{"red"}\hlstd{,}\hlstr{"yellow"}\hlstd{,}\hlstr{"white"}\hlstd{,}\hlstr{"blue"}\hlstd{))(}\hlnum{50}\hlstd{)}
+\hlkwd{heatmap.2}\hlstd{(resMulti}\hlopt{$}\hlstd{distmat,}\hlkwc{trace}\hlstd{=}\hlstr{"none"}\hlstd{,}\hlkwc{col}\hlstd{=heatmapCols,}\hlkwc{symm}\hlstd{=}\hlnum{FALSE}\hlstd{,}\hlkwc{dendrogram}\hlstd{=}\hlstr{"none"}\hlstd{,}
+          \hlkwc{Rowv}\hlstd{=}\hlnum{FALSE}\hlstd{,}\hlkwc{Colv}\hlstd{=}\hlnum{FALSE}\hlstd{)}
+\end{alltt}
+\end{kframe}
+\end{knitrout}
+\incfig[h]{figure/plotMultipval}{.5\textwidth}{Heatmap of the Sample 1 versus Sample 2 comparison similarity matrix}{Row and column labels 1.x and 2.y denote Sample 1 cell populations and Sample 2 cell populations, respectively.}
+
+
+
+\newpage
+
+\section{SessionInfo}
+The last part of this vignette calls for the function \Rfunction{sessionInfo}, which reports the computing environment in the session, including the R version number and all the packages used. Users should check their computing environment for consistency with this document as a first step in evaluating the errors/issues while using the \Biocpkg{flowMap}.
+
+\begin{itemize}\raggedright
+  \item R version 3.1.1 (2014-07-10), \verb|x86_64-apple-darwin13.1.0|
+  \item Locale: \verb|en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8|
+  \item Base packages: base, datasets, graphics, grDevices, methods,
+    parallel, stats, utils
+  \item Other packages: abind~1.4-0, ade4~1.6-2, doParallel~1.0.8,
+    flowMap~1.99.2, foreach~1.4.2, ggplot2~1.0.0, gplots~2.14.1,
+    igraph~0.7.1, iterators~1.0.7, knitr~1.6, Matrix~1.1-4,
+    reshape2~1.4, scales~0.2.4
+  \item Loaded via a namespace (and not attached): BiocStyle~1.2.0,
+    bitops~1.0-6, caTools~1.17, codetools~0.2-9, colorspace~1.2-4,
+    compiler~3.1.1, digest~0.6.4, evaluate~0.5.5, formatR~1.0,
+    gdata~2.13.3, grid~3.1.1, gtable~0.1.2, gtools~3.4.1, highr~0.3,
+    KernSmooth~2.23-12, lattice~0.20-29, MASS~7.3-34, munsell~0.4.2,
+    plyr~1.8.1, proto~0.3-10, Rcpp~0.11.2, stringr~0.6.2, tools~3.1.1
+\end{itemize}
+
+
+
+
+
+\begin{knitrout}
+\definecolor{shadecolor}{rgb}{0.969, 0.969, 0.969}\color{fgcolor}\begin{kframe}
+\begin{verbatim}
+## list()
+\end{verbatim}
+\end{kframe}
+\end{knitrout}
+
+\bibliography{flowMap}
+
+\end{document}

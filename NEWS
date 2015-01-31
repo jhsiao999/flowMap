@@ -1,0 +1,22 @@
+CHANGES IN VERSION 1.99.2
+------------------------
+
+USER VISIBLE CHANGES
+
+    o Remove functions that support computation of permutation-based p-values of the Friedman-
+      Rafsky (FR) statistic,including permutePops() and getFRvalsPerm(). Current release 
+      computes p-values of the FR statistic directly from the standard normal curve. 
+
+    o Remove functions for building a reference sample for multiple flow cytometry sample comparisons,
+      including makeRefMap() and makeRefSample(). Instead, curent release encourages the user to 
+      generate a multi-sample similar matrix of cell populations which can in turn be used to decide 
+      on matched or mismatched cell populations
+
+    o Remove getSomePops(), which was used to compute selected cell population pairs in a cross-sample
+      comparison. Current release computes the FR statistics for all possible cell population pairs 
+      in a cross-sample comparison.
+
+
+
+
+    

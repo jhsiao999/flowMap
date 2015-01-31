@@ -1,0 +1,180 @@
+%\VignetteIndexEntry{Multiple sample comparison in flow cytometry data with flowMap}
+%\VignetteDepends{flowMap}
+
+\documentclass[12pt]{article}
+
+<<options,echo=FALSE,eval=FALSE,results=hide>>=
+options(width=70)
+@
+
+\SweaveOpts{eps=FALSE,echo=TRUE}
+
+\usepackage{times}
+\usepackage{color,hyperref}
+\usepackage{fullpage}
+\usepackage{geometry}
+\usepackage[numbers]{natbib}
+\definecolor{darkblue}{rgb}{0.0,0.0,0.75}
+\hypersetup{colorlinks,breaklinks,linkcolor=darkblue,urlcolor=darkblue,
+            anchorcolor=darkblue,citecolor=darkblue}
+
+\geometry{hmargin=2.5cm, vmargin=2.5cm}
+           
+\newcommand{\Rcode}[1]{{\texttt{#1}}}
+\newcommand{\Rpackage}[1]{{\texttt{#1}}}
+\newcommand{\software}[1]{{\texttt{#1}}}
+\newcommand{\R}{\software{R}}
+\newcommand{\bold}[1]{\textbf{#1}} % Fix for R bibentry
+
+
+\title{{\textbf{Multiple sample comparison in flow cytometry data with \texttt{flowMap}}}}
+\author{Chiaowen Joyce Hsiao\\[1em]\\ Center for Bioinformatics and Computational Biology\\ University of Maryland, College Park\\[1em]\\ \texttt{chsiao@umiacs.umd.edu}}
+\date{Modified: September 24th, 2013. Compiled: \today}
+
+\begin{document}
+
+\SweaveOpts{concordance=TRUE}
+\setlength{\parskip}{1\baselineskip}
+\setlength{\parindent}{0pt}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Introduction}
+Flow cytometry (FCM) is a powerful single-cell technology that provides high-throughput data on cellular features, such as size, complexity, and antibodies. The data is processed one sample at a time. Homegeneous groups of cells, also known as cell populations, are then identified via automatic or manual gating methods. These cell populations may vary in proprotion, shape or levels of a particular antibody markers between samples. A major step in the downstream analysis of flow cytometry data is to analyze cell population differences for phenotype comparisons. \Rpackage{flowMap} implements a nonparametric variate test to compare cell populations between samples. Our method can accommdate the high-dimensional features of FCM data and also the sample variation in distributions. Details of the method is described in [1].\\ 
+
+
+\section{Overview of the algorithm}
+\Rpackage{flowMap} implements the nonparametric Friedman-Rafsky (FR) multivariate run test to compare and match cell popoulations between samples. p-values of the FR statistic are calculated for each population comparison. Populations are considered a match if the p-values are above a Bonferroni-corrected cutoff. Moreover, we employed two approaches to calculate the p-values: 1) finding the percentile of the observed FR statistics in a standard normal distribution, and 2) finding the percentile of the statistics in a empirical null distribution of the FR statistics. The former assumes that the FR statistics follows a standard normal distribution, while the latter takes no distributional assumptions. Hereafter, the former p-value is referred to as the \emph{theoretical p-value}, and the latter is referred to as the \emph{empirical p-value}. Both p-values are provided in the output.\\
+
+The goal of our algorithm is to identify matched versus mismatched cell populations by comparing each FCM sample to a selected rerference sample. Thus, two cell populations matched to the same reference are considered to be similar to each other as well. This method reduces the computational complexity. In addition, the algorithm allows the user to choose a reference sample for mapping or to construct a reference sample from the FCM test samples. The general flow of the diagram is as follows:\\
+Denote $S_o$ as the reference sample with m populations, and $S_i$ as the test sample with $n_i$ populations where $i=1,\dots,n$. Then,
+\begin{enumerate}
+\item Compare every $S_i$ with $S_o$,
+\begin{description}
+\item[Step 1:] compute FR statistics of the $n_i \times m$ population pairs,\\
+\item[Step 2:] compute p-values for the FR statistics,\\
+\item[Step 3:] identify a population pair as matched if the p-value is less than 0.01/($m \times n_i$),\\
+\end{description}
+\item Reassign $S_i$ population labels to the matched $S_o$ population label or a new unique population lable if there is no match in $S_o$.
+\item Make a metaset of cell population labels by combining the matched and mismatched populations across all samples $S_1,\dots,S_n$.
+\end{enumerate}
+
+\section{Data preparation}
+Here we assume that the data have been normalized and transformed according to appropriate flow cytometry data procedure. The input data can be in txt format or as data.frames, where the rows are the event (cell) data. The columns are consisted of the features and also the cell population identifying number as the last column of the data. Below is an example data \Rcode{Sample1}. There are 25,809 events in total with 5 feature markers (CD20,CD24,CD27,CD38,IgD). The last column of the data indexes the cell population labels.
+% \begin{small}
+% <<showData1>>=
+% sam1 <- read.table(system.file("extdata/sample1.txt"
+%             ,package="flowMap"),header=T)
+% str(sam1)
+% @
+% \end{small}
+% 
+% \section{Mapping cell populations across two samples}
+% For a two-sample comparison of $m \times n$ population pairs, we estimate the FR statistics for each pair with median FR statistics across $D$ random draws. Each random draw samples $k$ events from each sample, with a total of $2k$ events per random draw in a population comparison. The empirical null distribution of the FR statistic is calculated by shuffling cell population labels across two-samples. \Rpackage{flowMap} provides a comphrehensive parameter setting. Finally, we build in \Rpackage{doParallel} for user to specify the number of processing cores for the mapping function. In the case when the number of requested processing cores is greater than the number of processing cores available, the function will opt for the maximum number avaiable cores in the system.\\
+% 
+% In the following example, median FR statistic for each population pair is estimated from 5 random draws (\Rcode{draws=5}), with 100 events per population comparison (\Rcode{sampleSize=100}). The cutoff for the p-values is set at $0.01/30$ {(\Rcode{cutoff=$10^(-5)$})}. The number of permutation for building empirical null distribution is set at 300 (\Rcode{nperm=300}). 10 processing cores are requested.\\
+% 
+% The 2 populations in \Rcode{Sample 1} are compared with the 1 population in \Rcode{Sample 2}.
+% \begin{small}
+% <<showData2>>=
+% sam1 <- read.table(system.file("extdata/sample1.txt"
+%                 ,package="flowMap"),header=T)
+% sam2 <- read.table(system.file("extdata/sample2.txt"
+%                 ,package="flowMap"),header=T)
+% table(sam1$id)
+% table(sam2$id)
+% @
+% \end{small}
+% 
+% The \Rcode{FRmappingSimple} function computes FR statistic, p-values, and generates a list of matched/mismatched population labels.
+% \begin{small}
+% <<compareTwoSamples>>=
+% require(flowMap)
+% res1 <- FRmappingSimple(samples=list(sam1),centroids=NULL,
+%           refSample=sam2,refCentroid=NULL,nPopFilt=NULL,draws=5,cutoff=10^(-5),
+%           sampleMethod="equalSize",sampleSize=100,nperm=300)    
+% @
+% \end{small}
+% 
+% Return the estimated FR statistics
+% \begin{small}
+% <<getEstFR>>=
+% str(getFRmapStats(res1))
+% @
+% \end{small}
+% The estimated FR statistics is -0.426 for CP1 in Sample 1 compared with CP1 in Sample 2, and the estimated FR statistics is -14.068 for CP2 in Sample 1 compared with CP1 in Sample 2.
+% \begin{small}
+% <<plotTwoSampleFRs,fig=TRUE,height=3,width=3>>=
+% datToPlot <- melt(getFRmapStats(res1)[[1]])
+% colnames(datToPlot) <- c("X1","X2","value")
+% datToPlot$value[is.na(datToPlot$value)] <- -200
+% pp <- ggplot(datToPlot, aes(factor(X2), factor(X1,levels=rev(sort(unique(datToPlot$X1))) ) ) ) +
+%   coord_fixed() + geom_tile(aes(fill = value),colour="black") + 
+%    scale_fill_gradientn("FR statistics",colours=c("darkblue","blue","dodgerblue2",
+%    											   "deepskyblue","cyan1","cadetblue1","aliceblue","white"),
+%              							 values=rescale(c(2,1,0,-1,-2,-3,-4,-5)),
+%  	            						 guide="colorbar",limits=c(-15,3)) + 
+%    labs(x="Sample 2",y="Sample 1") 
+% print(pp)
+% @
+% \end{small}
+% 
+% Below are results of theoretical and empirical p-values. Both p-values suggest that between the two cell populations in Sample 1, CP1 in Sample 1 is more similar to CP1 in Sample 2 than CP2 in Sample 1.
+% \begin{small}
+% <<getPvals>>=
+% str(getFRmapPnorms(res1))
+% str(getFRmapPnulls(res1))
+% @
+% \end{small}
+% % \begin{small}
+% % <<plotTwoSamplePvals,fig=T>>=
+% % datToPlot <- list(melt(getFRmapPnorms(res1)[[1]]),
+% %                    melt(getFRmapPnulls(res1)[[1]]))
+% % datToPlot <- lapply(1:2, function(i) {
+% %    colnames(datToPlot[[i]]) <- c("X1","X2","value")
+% %    datToPlot[[i]]$value <- -log10(datToPlot[[i]]$value)
+% %    datToPlot[[i]]$value[is.na(datToPlot[[i]]$value)] <- -200
+% %    data.frame(datToPlot[[i]]) })
+% %  labs <- c("Theoretical p-values","Empirical p-values")
+% % ps <- lapply(1:2, function(i) {
+% %    ggplot(datToPlot[[i]], aes(factor(X2), 
+% %                               factor(X1,levels=rev(sort(unique(X1))) ) ) ) + 
+% %    coord_fixed() + geom_tile(aes(fill = value)) + 
+% %    scale_fill_gradientn("-log10(p-value)",colours=c("darkred","red","orangered","tomato",
+% %                                                     "orange","yellow","lightyellow","white"),
+% %          values=rescale(c(0,1,5,10,20,25,30,35,40)), guide="colorbar",limits=c(0,50)) + 
+% %    labs(x="Sample 2",y="Sample 1") + ggtitle(labs[[i]])
+% %    })
+% % do.call(marrangeGrob,c(ps,list(nrow=1,ncol=2)))
+% % @
+% % \end{small}
+% 
+% Below return the matching results of cell populations. CP1 in Sample 1 is mapped to CP1 in Sample 2, and CP2 in Sample 1 is mapped to CP1 in Sample 2.
+% \begin{small}
+% <<listRes1>>=
+% getCrossList(res1)
+% @
+% \end{small}
+% 
+% 
+% \section{References}
+% [1] Chiaowen Hsiao, Mengya Liu, Yu Qian, Monnie McGee, and Richard Scheuermann (2013). Multiple sample comparison in flow cytometry data (manuscript in preparation).
+% 
+% \section{SessionInfo}
+% <<sessionInfo,results=tex,eval=TRUE>>=
+% toLatex(sessionInfo())
+% @
+
+<<closeSockets,echo=FALSE>>=
+closeSockets <- function() {
+    allCon <- showConnections()
+    socketCon <- as.integer(rownames(allCon)[allCon[, "class"] == "sockconn"])
+    sapply(socketCon, function(ii) close.connection(getConnection(ii)) )
+}
+closeSockets()
+@
+
+
+\end{document}
