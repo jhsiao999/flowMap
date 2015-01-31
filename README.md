@@ -9,7 +9,7 @@ cell types. 'flowMap' is a stand-alone method that can be easily incorporated wi
 any flow cytometry workflow.
 
 
-## Brief description of our method
+## Preparing data for 'flowMap'
 
 * Input: a set of gated sample that are stored in txt format. Each sample data file
 is in a table format consisting of marker expression levels (rows) by marker channels
